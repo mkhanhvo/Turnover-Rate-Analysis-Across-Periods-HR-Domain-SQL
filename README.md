@@ -70,7 +70,6 @@ Taable 5: Performance
 3️⃣ SQL Analysis 
 
 ## Task 1: Analyze turnover rate by year to identify trends over time
-
 Annual turnover analysis is essential to detect long term workforce trends, identify potential retention risks and assess whether turnover changes are structural or event driven. This metric provides an early signal of workforce instability and supports strategic workforce planning
 
 ### Code:
@@ -128,6 +127,7 @@ ORDER BY y.Year
 Overall, turnover ranged from 3.6% to 10.3% between 2006 and 2018, **peaking in 2015 (10.34%)** during the company’s rapid expansion phase, when headcount grew significantly from 13 to 229 employees. Turnover **gradually increased** alongside workforce growth from **2010 to 2015,** suggesting that attrition was linked to scaling pressure rather than structural retention issues. Following 2016, turnover **declined notably to 3.64% in 2017,** indicating improved stability as organizational growth slowed. **No abnormal spikes or retention crisis were observed **and hiring consistently offset attrition during peak years
 
 ## Task 2: Analyze overall turnover rate by position
+After reviewing the overall turnover trend over time, analyzing turnover by position helps identify which roles contribute most to employee exits. While the time trend shows how turnover changes across years, position-level analysis explains where the turnover is happening within the organization. This step provides a clearer view of which functional areas may require deeper investigation or targeted retention strategies
 
 ### Code:
 ```sql
@@ -168,6 +168,29 @@ ORDER BY turnover_rate_by_position DESC;
 
 Overall position level analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. Overall, the pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
 
+## Task 3: Analyze overall turnover rate by tenure
+After identifying where turnover occurs by position, analyzing turnover by tenure helps determine at which stage of the employee lifecycle attrition is most concentrated. While position analysis explains “where” employees leave, tenure analysis explains “when” they leave in their career journey within the organization. This provides insight into whether turnover is driven by early-stage hiring and onboarding challenges, mid-career stagnation, or long-term retention issues. Understanding tenure-based patterns allows the organization to design more targeted retention strategies aligned with different career stages
+
+### Code:
+```sql
+SELECT
+CASE
+  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) <1 THEN '0-1 year'
+  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) BETWEEN 1 AND 2 THEN '1-2 years'
+  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) BETWEEN 3 AND 5 THEN '3-5 years'
+  ELSE '+5 years' END AS Tenure,
+
+COUNT(*) AS terminated_by_tenure,
+
+ROUND(
+  SAFE_DIVIDE(
+    COUNT(*),
+    SUM(COUNT(*)) OVER ()) * 100,2) AS pct_terminated_by_tenure
+
+FROM `hr-operations-analysis.hr_raw.new_employee_data`
+WHERE Termination = 1
+GROUP BY Tenure;
+```
 ## 🔎 Final Conclusion & Recommendations  
 
 👉🏻 Based on the insights and findings above, we would recommend the [stakeholder team] to consider the following:  
