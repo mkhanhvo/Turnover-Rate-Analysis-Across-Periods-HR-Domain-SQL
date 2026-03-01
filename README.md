@@ -1,12 +1,9 @@
-
-👉🏻Change Icon emoji 🔥🔍📘🚩 to your likings by clicking "Start" + "."
-
 # 📊 Turnover Rate Across Periods Analysis - mid sized technology enabled organization | SQL
   
-Author: Vo Tran Mai Khanh
-Date: 02/2026
-Tools Used: SQL
----
+### Author: Vo Tran Mai Khanh
+### Date: 02/2026
+### Tools Used: SQL
+
 ## 📑 Table of Contents  
 1. [📌 Background & Overview](#-background--overview)  
 2. [📂 Dataset Description & Data Structure](#-dataset-description--data-structure)
@@ -76,40 +73,100 @@ Taable 5: Performance
 
 Annual turnover analysis is essential to detect long term workforce trends, identify potential retention risks and assess whether turnover changes are structural or event driven. This metric provides an early signal of workforce instability and supports strategic workforce planning
 
- **_If your result is a very long table with many records, only show top 5/10 and bottom 5/10 rows, or records that relevant to the insights/ observation below_**
+### Code:
+```sql
+ WITH years AS(
+  SELECT DISTINCT EXTRACT (YEAR FROM DateofHire) AS Year
+FROM `hr-operations-analysis.hr_raw.new_employee_data`),
 
-*_Example_*
+beginning_headcount AS(
+  SELECT 
+  y.Year,
+  COUNT(EmployeeID) AS beginning_headcount
+FROM years AS y
+  LEFT JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+  ON hr.DateofHire <= DATE(CONCAT(y.Year,'-01-01'))
+  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= DATE(CONCAT(y.Year,'-01-01'))))
+GROUP BY y.Year),
 
-### Project Results:
+end_headcount AS(
+SELECT 
+  y.Year,
+  COUNT(EmployeeID) AS end_headcount
+FROM years AS y
+  LEFT JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+  ON hr.DateofHire <= DATE(CONCAT(y.Year,'-12-31'))
+  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= DATE(CONCAT(y.Year,'-12-31'))))
+GROUP BY y.Year),
 
-| Period   | Name                | Count Items | Count Orders | Sales        |
-|:---------|:--------------------|------------:|-------------:|-------------:|
-| Apr 2014 | Bib-Shorts          |           4 |            1 |       233.97 |
-| Feb 2014 | Bib-Shorts          |           4 |            2 |       233.97 |
-| Jul 2013 | Bib-Shorts          |           2 |            1 |       116.99 |
-| Jun 2013 | Bib-Shorts          |           2 |            1 |       116.99 |
-| Apr 2014 | Bike Racks          |          45 |           45 |     5,400.00 |
-| Aug 2013 | Bike Racks          |         222 |           63 |    17,387.18 |
-| Dec 2013 | Bike Racks          |         162 |           48 |    12,582.29 |
-| Feb 2014 | Bike Racks          |          27 |           27 |     3,240.00 |
-| Jan 2014 | Bike Racks          |         161 |           53 |    12,840.00 |
-| Jul 2013 | Bike Racks          |         422 |           75 |    29,802.30 |
-| ...      | ...                 |         ... |          ... |          ... |
-| May 2014 | Vests               |         610 |          103 |    23,640.71 |
-| Nov 2013 | Vests               |         315 |           75 |    12,937.24 |
-| Oct 2013 | Vests               |         611 |           93 |    23,255.74 |
-| Sep 2013 | Vests               |         623 |          102 |    24,100.47 |
-| Jul 2013 | Wheels              |           4 |            1 |       698.63 |
-| Jun 2013 | Wheels              |           3 |            1 |       450.91 |
-| Sep 2013 | Wheels              |           1 |            1 |        83.30 |
+termination_by_year AS(
+SELECT
+  EXTRACT (YEAR FROM DateofTermination) AS Year,
+  COUNT(EmployeeID) AS total_terminated
+FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+WHERE DateofTermination IS NOT NULL
+GROUP BY Year)
 
-*A summary of the full results. The complete dataset is available in the repository.*
+SELECT
+  y.Year,
+  IFNULL(b.beginning_headcount,0) AS Beginning_headcount,
+  IFNULL(e.end_headcount,0) AS End_headcount,
+  IFNULL(t.total_terminated,0) AS Total_terminated,
+  IFNULL(
+    ROUND(
+    t.total_terminated / ((b.beginning_headcount + e.end_headcount) / 2) * 100,2),0) AS Turnover_rate_by_year
+FROM years AS y
+  LEFT JOIN beginning_headcount AS b ON y.Year = b.Year
+  LEFT JOIN end_headcount AS e ON y.Year = e.Year
+  LEFT JOIN termination_by_year AS t ON y.Year = t.Year
+ORDER BY y.Year
+```
+### Result
 
-👉🏻 Finally, explain your observations/ findings from the results 
-  
- _Describe trends, key metrics, and patterns._  
+<img width="449" height="253" alt="image" src="https://github.com/user-attachments/assets/b31519d5-f0a0-4682-b048-546a1da32805" />
 
----
+Overall, turnover ranged from 3.6% to 10.3% between 2006 and 2018, **peaking in 2015 (10.34%)** during the company’s rapid expansion phase, when headcount grew significantly from 13 to 229 employees. Turnover **gradually increased** alongside workforce growth from **2010 to 2015,** suggesting that attrition was linked to scaling pressure rather than structural retention issues. Following 2016, turnover **declined notably to 3.64% in 2017,** indicating improved stability as organizational growth slowed. **No abnormal spikes or retention crisis were observed **and hiring consistently offset attrition during peak years
+
+## Task 2: Analyze overall turnover rate by position
+
+### Code:
+```sql
+WITH terminate_by_position AS(
+SELECT
+  Position,
+  COUNT(EmployeeID) AS total_terminated
+FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+  LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
+  ON hr.PositionID = po.PositionID
+WHERE DateofTermination IS NOT NULL
+GROUP BY Position),
+
+headcount_per_position AS(
+SELECT
+  Position,
+  COUNT(DISTINCT EmployeeID) AS headcount_per_position
+FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+  LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
+  ON hr.PositionID = po.PositionID
+GROUP BY Position)
+
+SELECT
+  h.Position,
+  h.headcount_per_position,
+  IFNULL(t.total_terminated,0) AS total_terminated,
+  IFNULL(ROUND(SAFE_DIVIDE(t.total_terminated,headcount_per_position)*100,2),0) AS turnover_rate_by_position
+FROM headcount_per_position AS h
+  LEFT JOIN terminate_by_position AS t
+  ON h.Position = t.Position
+ORDER BY turnover_rate_by_position DESC;
+```
+### Result
+
+<img width="458" height="359" alt="image" src="https://github.com/user-attachments/assets/203335d1-2c71-459f-802c-933b03d34121" />
+
+<img width="452" height="197" alt="image" src="https://github.com/user-attachments/assets/2a3b9ee7-305e-451d-b84d-91fd0ed675b1" />
+
+Overall position level analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. Overall, the pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
 
 ## 🔎 Final Conclusion & Recommendations  
 
