@@ -4,11 +4,6 @@
 ### Date: 02/2026
 ### Tools Used: SQL
 
-## 📑 Table of Contents  
-1. [📌 Background & Overview](#-background--overview)  
-2. [📂 Dataset Description & Data Structure](#-dataset-description--data-structure)
-4. [🔎 Final Conclusion & Recommendations](#-final-conclusion--recommendations)
-
 ## 📌 Background & Overview  
 
 ### Objective:
@@ -24,44 +19,31 @@
 - Department Managers – to identify high risk teams and address engagement or performance gaps
 - Executive Leadership – to understand workforce stability and its impact on operational continuity
 - Talent Acquisition Team – to adjust hiring strategy based on turnover patterns and tenure risks
-- Workforce Planning / Operations Team – to support succession planning and capacity forecasting
+- Workforce Planning / Operations Team – to support succession planning and capacity forecasting 
 
-## 📂 Dataset Description & Data Structure  
-
-### 📌 Data Source  
+### 📊 Data Source  
 - Source: HR workforce dataset representing a mid-sized technology-enabled organization   
 - Size: 311 employee records across multiple HR related tables
 - Format: .csv
 
 ### 📊 Data Structure & Relationships  
 
-#### 1️⃣ Tables Used:  
-- **Employees** – employee demographic and information  
+### 1️⃣ Tables Used:  
+- **Employees data** – workforce master data covering employment status, termination details, hire/termination dates, organizational identifiers (Department ID, Position ID)   
 - **Positions** – job titles and department mapping  
-- **Departments** – department details  
-- **Terminations** – employee exit records and reasons
 
-#### 2️⃣ Table Schema & Data Snapshot  
+### 2️⃣ Table Schema & Data Snapshot  
 
-Table 1: Employee Table
+**Table 1:** Employee Table
+
 
 <img width="892" height="200" alt="image" src="https://github.com/user-attachments/assets/7beb1553-92b6-487e-a3b0-f4948e5c14b1" />
 
-Table 2: Department
+**Table 2:** Position
 
-<img width="307" height="107" alt="image" src="https://github.com/user-attachments/assets/1121950f-2a86-4ab7-8b54-eb36baf3815a" />
-
-Table 3: Position
 
 <img width="306" height="107" alt="image" src="https://github.com/user-attachments/assets/5733e6ab-11a5-45ac-898d-80f28d748b5d" />
 
-Table 4: Manager
-
-<img width="203" height="106" alt="image" src="https://github.com/user-attachments/assets/fba234dc-2cbd-4014-8954-aa879227117b" />
-
-Taable 5: Performance
-
-<img width="226" height="88" alt="image" src="https://github.com/user-attachments/assets/4401a26e-c556-431c-b3b3-89aeedd0c396" />
 
 ## ⚒️ Main Process
 
@@ -133,11 +115,10 @@ Following the annual turnover trend analysis, examining turnover by Employment S
 ```sql
 WITH years AS(
   SELECT DISTINCT EXTRACT (YEAR FROM hr.DateofTermination)
-FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-),
+FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr),
 
 avg_headcount AS(
-  SELECT
+SELECT
   b.Year,
   (b.beginning_headcount + e.end_headcount)/2 AS avg_headcount
 FROM `hr-operations-analysis.hr_raw.beginning_headcount` AS b
@@ -168,7 +149,7 @@ ORDER BY t.Year, t.EmploymentStatus;
 
 <img width="418" height="272" alt="image" src="https://github.com/user-attachments/assets/d8906e85-6d5f-4359-a099-8969442109aa" />
 
-The breakdown of turnover by Employment Status shows that **voluntary resignations consistently account** for the majority of annual turnover. From 2010 to 2018, **voluntary** turnover remains significantly higher than terminations for cause, **peaking in 2015–2016**, while **involuntary** turnover stays low and stable, **generally below 2.5%**. This indicates that fluctuations in overall turnover are **primarily driven by employee initiated exits** rather than company decisions. The spike in 2015–2016 suggests a retention challenge during that period, whereas the decline in 2017 reflects improved stability. Overall, attrition appears more related to engagement, career progression, or external opportunities, implying that retention strategies rather than stricter performance management should be the primary focus
+The breakdown of turnover by Employment Status shows that **voluntary resignations consistently account** for the majority of annual turnover. From 2010 to 2018, **voluntary turnover** remains significantly higher than terminations for cause, **peaking in 2015–2016**, while **involuntary** turnover stays low and stable, **generally below 2.5%**. This indicates that fluctuations in overall turnover are **primarily driven by employee initiated exits** rather than company decisions. The spike in 2015–2016 suggests a retention challenge during that period, whereas the decline in 2017 reflects improved stability. Overall, attrition appears more related to engagement, career progression, or external opportunities, implying that retention strategies rather than stricter performance management should be the primary focus
 
 ### Task 3: Analyze overall turnover rate by position
 Building on the turnover analysis by status and year, turnover was further examined by position to identify roles contributing most to employee exits. While the time based analysis reveals how turnover evolves across years, position level analysis highlights where turnover is concentrated within the organization. This provides clearer insight into functional areas that may require deeper investigation or targeted retention strategies
@@ -180,8 +161,8 @@ SELECT
   Position,
   COUNT(EmployeeID) AS total_terminated
 FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-  LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
-  ON hr.PositionID = po.PositionID
+LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
+ON hr.PositionID = po.PositionID
 WHERE DateofTermination IS NOT NULL
 GROUP BY Position),
 
@@ -190,8 +171,8 @@ SELECT
   Position,
   COUNT(DISTINCT EmployeeID) AS headcount_per_position
 FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-  LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
-  ON hr.PositionID = po.PositionID
+LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
+ON hr.PositionID = po.PositionID
 GROUP BY Position)
 
 SELECT
@@ -200,8 +181,8 @@ SELECT
   IFNULL(t.total_terminated,0) AS total_terminated,
   IFNULL(ROUND(SAFE_DIVIDE(t.total_terminated,headcount_per_position)*100,2),0) AS turnover_rate_by_position
 FROM headcount_per_position AS h
-  LEFT JOIN terminate_by_position AS t
-  ON h.Position = t.Position
+LEFT JOIN terminate_by_position AS t
+ON h.Position = t.Position
 ORDER BY turnover_rate_by_position DESC;
 ```
 ### Result
@@ -212,7 +193,7 @@ ORDER BY turnover_rate_by_position DESC;
 <img width="452" height="197" alt="image" src="https://github.com/user-attachments/assets/2a3b9ee7-305e-451d-b84d-91fd0ed675b1" />
 
 
-Overall position level analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. Overall, the pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
+Full period position analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. he pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
 
 ### Task 4: Analyze overall turnover rate by tenure
 In addition to position level analysis, turnover was examined by tenure to identify the career stages where attrition is most concentrated. While position analysis highlights “where” employees leave, tenure analysis clarifies “when” they leave. This helps determine whether turnover is linked to onboarding gaps, mid-career stagnation or long-term retention challenges, supporting more stage specific retention strategies
@@ -268,8 +249,8 @@ GROUP BY Year, po.Position),
 
 position_headcount_year AS (
   SELECT
-  y.Year,
-  po.Position,
+    y.Year,
+    po.Position,
     COUNT(DISTINCT hr.EmployeeID) AS headcount_year
   FROM (
     SELECT DISTINCT EXTRACT(YEAR FROM DateofTermination) AS Year
@@ -292,24 +273,55 @@ SELECT
   ROUND(SAFE_DIVIDE(t.total_terminated, h.headcount_year) * 100, 2) AS turnover_rate
 FROM yearly_base t
 LEFT JOIN position_headcount_year h
-  ON t.Year = h.Year
- AND t.Position = h.Position
+ON t.Year = h.Year AND t.Position = h.Position
 ORDER BY t.Position, t.Year;
 ```
 ### Result
 
 <img width="508" height="357" alt="image" src="https://github.com/user-attachments/assets/fe91cabf-ff64-42a5-83eb-27b373ac9ba6" />
 
-Production Technician I shows a structural upward trend, rising from 2.63% (2012) to 13.04% (2016). In contrast, Production Technician II experienced a one-time spike at 24.24% (2013) before stabilizing, while Production Manager II peaked at 25% (2012) but remained around ~11% afterward. The findings indicate sustained attrition pressure primarily in Production Technician I.
+Production Technician I shows a structural upward trend, **rising from 2.63% (2012) to 13.04% (2016)**. In contrast, Production Technician II experienced a **one-time spike at 24.24% (2013)** before stabilizing, while Production Manager II **peaked at 25% (2012) but remained around ~11% afterward**. The findings indicate sustained attrition pressure primarily in Production Technician I.
 
-## 🔎 Final Conclusion & Recommendations  
+## Final Conclusion & Recommendations  
 
-👉🏻 Based on the insights and findings above, we would recommend the [stakeholder team] to consider the following:  
+Based on the insights above, the following strategic actions are recommended for HR Team:  
 
-📍 Key Takeaways:  
-✔️ Recommendation 1  
-✔️ Recommendation 2  
-✔️ Recommendation 3
+### 1️⃣ Growth-Driven Attrition, Not Structural Instability
+Turnover peaked in 2015 (10.34%) during rapid workforce expansion, then stabilized as growth slowed. This suggests attrition was largely associated with scaling pressure rather than systemic retention failure.
 
-**_📌Remember to summarize the most core insights/ observations you extract from the entire projects. 
- Recap ONLY key actions/ recommendations. DO NOT copy paste everything above_**
+### Key Actions
+- Implement structured workforce planning before large scale hiring phases
+- Forecast expected attrition buffers in expansion models
+- Strengthen onboarding capacity during rapid growth periods
+
+### 2️⃣ Attrition is Primarily Voluntary
+Most separations were employee driven rather than company initiated, indicating retention risk rather than performance cleansing
+
+### Key Actions
+- Standardize exit reason categorization for voluntary exits
+Conduct proactive stay interviews for mid-tenure employees
+- Introduce early retention risk flags based on tenure and role
+
+### 3️⃣ Operational Roles Drive Attrition Risk
+Turnover is concentrated in production related roles (Technician I, Technician II, Manager II), while leadership and strategic roles remain stable. This signals operational continuity risk rather than strategic talent loss
+
+### Key Actions
+- Redesign career progression pathways for production roles
+- Establish structured skill ladders with defined promotion timelines
+- Build operational staffing buffers during peak production periods
+
+### 4️⃣ Mid Tenure Employees (3–5 Years) Represent the Highest Risk Segment
+Nearly half of all terminations occur within the 3–5 year tenure band, indicating potential stagnation, compensation gaps or limited advancement opportunities at a critical career stage
+
+### Key Actions
+- Launch mid-career progression programs (3–5 year focus)
+- Conduct targeted compensation benchmarking for this segment
+- Offer internal mobility opportunities before the 4-year mark
+
+### 5️⃣ Structural Risk in Production Technician I
+Production Technician I shows a sustained upward turnover trend, indicating a structural pressure point rather than a one-time spike.
+
+### Key Actions
+- Implement milestone-based pay and title progression within the first 24 months
+- Strengthen frontline manager training and engagement capability
+- Introduce retention check-ins at 18–24 months for entry-level production staff
