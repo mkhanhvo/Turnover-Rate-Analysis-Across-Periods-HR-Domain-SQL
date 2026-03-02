@@ -1,3 +1,5 @@
+<img width="1440" height="817" alt="image" src="https://github.com/user-attachments/assets/de9e242a-b212-4a2d-a837-68b2930ba846" />
+
 # 📊 Turnover Rate Across Periods Analysis - mid sized technology enabled organization | SQL
   
 ### Author: Vo Tran Mai Khanh
@@ -6,7 +8,7 @@
 
 ## 📌 Background & Overview  
 
-### Objective - This project uses SQL to analyze turnover rate from technology organization to:
+### 📖 Objective - This project uses SQL to analyze turnover rate from technology organization to:
 - Examine turnover trends over time
 - Differentiate turnover types (voluntary vs. involuntary)
 - Identify root causes of employee exits
@@ -27,11 +29,11 @@
 
 ### 📊 Data Structure & Relationships  
 
-### 1️⃣ Tables Used:  
+#### 1️⃣ Tables Used:  
 - **Employees data** – workforce master data covering employment status, termination details, hire/termination dates, organizational identifiers (Department ID, Position ID)   
 - **Positions** – job titles and department mapping  
 
-### 2️⃣ Table Schema & Data Snapshot  
+#### 2️⃣ Table Schema & Data Snapshot  
 
 **Table 1:** Employee Table
 
@@ -50,7 +52,7 @@
 2️⃣ Exploratory Data Analysis (EDA)  
 3️⃣ SQL Analysis 
 
-### Task 1: Analyze turnover rate by year to identify trends over time
+### 📌 Task 1: Analyze turnover rate by year to identify trends over time
 Annual turnover analysis is essential to detect long term workforce trends, identify potential retention risks and assess whether turnover changes are structural or event driven. This metric provides an early signal of workforce instability and supports strategic workforce planning
 
 ### Code:
@@ -107,7 +109,7 @@ ORDER BY y.Year
 
 Overall, turnover ranged from 3.6% to 10.3% between 2006 and 2018, **peaking in 2015 (10.34%)** during the company’s rapid expansion phase, when headcount grew significantly from 13 to 229 employees. Turnover **gradually increased** alongside workforce growth from **2010 to 2015,** suggesting that attrition was linked to scaling pressure rather than structural retention issues. Following 2016, turnover **declined notably to 3.64% in 2017,** indicating improved stability as organizational growth slowed. **No abnormal spikes or retention crisis were observed **and hiring consistently offset attrition during peak years
 
-### Task 2: Analyze turnover rate contribution by Employment Status - Voluntarily terminated & Terminate by Cause
+### 📌 Task 2: Analyze turnover rate contribution by Employment Status - Voluntarily Terminated & Terminate by Cause
 Following the annual turnover trend analysis, examining turnover by Employment Status (Voluntarily Terminated vs. Terminated for Cause) helps clarify the underlying drivers of attrition. While the overall rate shows whether turnover is rising or falling, it does not explain why employees leave. Breaking it down by status distinguishes between employee driven exits and company initiated terminations, providing clearer insight into whether turnover reflects retention challenges or internal management decisions
 
 ### Code:
@@ -150,7 +152,7 @@ ORDER BY t.Year, t.EmploymentStatus;
 
 The breakdown of turnover by Employment Status shows that **voluntary resignations consistently account** for the majority of annual turnover. From 2010 to 2018, **voluntary turnover** remains significantly higher than terminations for cause, **peaking in 2015–2016**, while **involuntary** turnover stays low and stable, **generally below 2.5%**. This indicates that fluctuations in overall turnover are **primarily driven by employee initiated exits** rather than company decisions. The spike in 2015–2016 suggests a retention challenge during that period, whereas the decline in 2017 reflects improved stability. Overall, attrition appears more related to engagement, career progression, or external opportunities, implying that retention strategies rather than stricter performance management should be the primary focus
 
-### Task 3: Analyze overall turnover rate by position
+### 📌 Task 3: Analyze overall turnover rate by position
 Building on the turnover analysis by status and year, turnover was further examined by position to identify roles contributing most to employee exits. While the time based analysis reveals how turnover evolves across years, position level analysis highlights where turnover is concentrated within the organization. This provides clearer insight into functional areas that may require deeper investigation or targeted retention strategies
 
 ### Code:
@@ -194,7 +196,7 @@ ORDER BY turnover_rate_by_position DESC;
 
 Full period position analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. he pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
 
-### Task 4: Analyze overall turnover rate by tenure
+### 📌 Task 4: Analyze overall turnover rate by tenure
 In addition to position level analysis, turnover was examined by tenure to identify the career stages where attrition is most concentrated. While position analysis highlights “where” employees leave, tenure analysis clarifies “when” they leave. This helps determine whether turnover is linked to onboarding gaps, mid-career stagnation or long-term retention challenges, supporting more stage specific retention strategies
 
 ### Code:
@@ -281,11 +283,11 @@ ORDER BY t.Position, t.Year;
 
 Production Technician I shows a structural upward trend, **rising from 2.63% (2012) to 13.04% (2016)**. In contrast, Production Technician II experienced a **one-time spike at 24.24% (2013)** before stabilizing, while Production Manager II **peaked at 25% (2012) but remained around ~11% afterward**. The findings indicate sustained attrition pressure primarily in Production Technician I.
 
-## Final Conclusion & Recommendations  
+## 🔎 Final Conclusion & Recommendations  
 
 Based on the insights above, the following strategic actions are recommended for HR Team:  
 
-### 1️⃣ Growth-Driven Attrition, Not Structural Instability
+### 1️⃣ Growth Driven Attrition, Not Structural Instability
 Turnover peaked in 2015 (10.34%) during rapid workforce expansion, then stabilized as growth slowed. This suggests attrition was largely associated with scaling pressure rather than systemic retention failure.
 
 ### Key Actions
