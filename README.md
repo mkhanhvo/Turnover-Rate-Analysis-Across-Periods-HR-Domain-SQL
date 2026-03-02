@@ -6,8 +6,7 @@
 
 ## 📌 Background & Overview  
 
-### Objective:
-- This project uses SQL to analyze turnover rate from technology organization to:
+### Objective - This project uses SQL to analyze turnover rate from technology organization to:
 - Examine turnover trends over time
 - Differentiate turnover types (voluntary vs. involuntary)
 - Identify root causes of employee exits
