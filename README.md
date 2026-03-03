@@ -11,9 +11,8 @@
 ### 📖 Objective - This project uses SQL to analyze turnover rate from technology organization to:
 - Examine turnover trends over time
 - Differentiate turnover types (voluntary vs. involuntary)
-- Identify root causes of employee exits
+- Analyze turnover rates by position and tenure
 - Segment workforce to detect retention risks
-- Support strategic retention planning  
 
 ### 👤 Who is this project for?  
 - HR Leadership & People Analytics Team – to monitor turnover trends and design targeted retention strategies
