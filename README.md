@@ -192,177 +192,310 @@ Turnover shows noticeable seasonal patterns with increases occurring primarily a
 - Conduct retention reviews before high risk periods, particularly during Q2 and Q3
 - Implement proactive measures such as: compensation reviews, career discussions and internal mobility opportunities. These actions can reduce the likelihood of employees leaving during peak turnover periods
 
-### 📌 Task 3: Analyze overall turnover rate by position
-Building on the turnover analysis by status and year, turnover was further examined by position to identify roles contributing most to employee exits. While the time based analysis reveals how turnover evolves across years, position level analysis highlights where turnover is concentrated within the organization. This provides clearer insight into functional areas that may require deeper investigation or targeted retention strategies
+### 📌 Task 3: Turnover Concentration by Employee Segment
+Analyzing turnover concentration by employee segments helps identify which groups of employees contribute most to overall attrition. By examining factors such as tenure and position, organization can better understand where turnover is concentrated and design more targeted retention strategies
+
+#### 3.1 Tenure Trend Over Time
 
 ### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+  
 ```sql
-WITH terminate_by_position AS(
+-- Generate a continuous list of years for analysis/ Tạo danh sách năm liên tục cho phân tích
+WITH year AS (
+SELECT EXTRACT(YEAR FROM d) AS Year
+FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2006-01-01', DATE '2018-12-31', INTERVAL 1 YEAR)) AS d),
+
+-- Active headcount by year and tenure group/ Headcount đang làm việc theo năm và nhóm tenure
+active_headcount AS (
 SELECT
-  Position,
-  COUNT(EmployeeID) AS total_terminated
+  y.Year,
+  COUNT(DISTINCT hr.EmployeeID) AS active_headcount,
+  CASE 
+    WHEN DATE_DIFF(DATE(y.Year,12,31), hr.DateofHire, YEAR) < 1 THEN '0-1 year'
+    WHEN DATE_DIFF(DATE(y.Year,12,31), hr.DateofHire, YEAR) BETWEEN 1 AND 2 THEN '1-2 years'
+    WHEN DATE_DIFF(DATE(y.Year,12,31), hr.DateofHire, YEAR) BETWEEN 2 AND 3 THEN '2-3 years'
+    WHEN DATE_DIFF(DATE(y.Year,12,31), hr.DateofHire, YEAR) BETWEEN 3 AND 5 THEN '3-5 years'
+    ELSE '5+ years' END AS Tenure
 FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
-ON hr.PositionID = po.PositionID
+JOIN year AS y
+ON hr.DateofHire <= DATE(y.Year,12,31)
+AND (hr.DateofTermination >= DATE(y.Year,1,1) OR hr.DateofTermination IS NULL)
+GROUP BY y.Year, Tenure),
+
+-- Terminated headcount by year and tenure group/ Số nhân viên nghỉ việc theo năm và tenure
+terminated_headcount AS (
+SELECT
+  EXTRACT(YEAR FROM DateofTermination) AS Year,
+  COUNT(*) AS terminated_headcount,
+  CASE
+    WHEN DATE_DIFF(DateofTermination,DateofHire,YEAR) < 1 THEN '0-1 year'
+    WHEN DATE_DIFF(DateofTermination,DateofHire,YEAR) BETWEEN 1 AND 2 THEN '1-2 years'
+    WHEN DATE_DIFF(DateofTermination,DateofHire,YEAR) BETWEEN 2 AND 3 THEN '2-3 years'
+    WHEN DATE_DIFF(DateofTermination,DateofHire,YEAR) BETWEEN 3 AND 5 THEN '3-5 years'
+    ELSE '5+ years' END AS Tenure
+FROM `hr-operations-analysis.hr_raw.new_employee_data`
 WHERE DateofTermination IS NOT NULL
-GROUP BY Position),
+GROUP BY Year, Tenure),
 
-headcount_per_position AS(
+-- Calculate turnover rate by year and tenure/ Tính tỷ lệ nghỉ việc theo năm và tenure
+turnover AS (
 SELECT
-  Position,
-  COUNT(DISTINCT EmployeeID) AS headcount_per_position
-FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
-ON hr.PositionID = po.PositionID
-GROUP BY Position)
+  a.Year,
+  a.Tenure,
+  ROUND((IFNULL(t.terminated_headcount,0) / a.active_headcount) * 100,2) AS turnover_rate -- Turnover = terminated / active headcount
+FROM active_headcount a
+LEFT JOIN terminated_headcount t
+ON a.Year = t.Year
+AND a.Tenure = t.Tenure)
 
-SELECT
-  h.Position,
-  h.headcount_per_position,
-  IFNULL(t.total_terminated,0) AS total_terminated,
-  IFNULL(ROUND(SAFE_DIVIDE(t.total_terminated,headcount_per_position)*100,2),0) AS turnover_rate_by_position
-FROM headcount_per_position AS h
-LEFT JOIN terminate_by_position AS t
-ON h.Position = t.Position
-ORDER BY turnover_rate_by_position DESC;
+-- Pivot tenure groups into columns for easier comparison/ Pivot các nhóm tenure thành cột để dễ so sánh
+SELECT *
+FROM turnover
+PIVOT(MAX(turnover_rate) FOR Tenure IN ('0-1 year','1-2 years','2-3 years','3-5 years','5+ years'))
+ORDER BY Year
 ```
+</details>
+
 ### Result
 
-<img width="458" height="359" alt="image" src="https://github.com/user-attachments/assets/203335d1-2c71-459f-802c-933b03d34121" />
+<img width="901" height="565" alt="image" src="https://github.com/user-attachments/assets/41de9392-e73a-450b-b013-bb9448695946" />
 
+Turnover begins to rise after the first year of employment and **remains highest among employees with 3–5 years of tenure.** This suggests that **mid career employees may face limited internal advancement opportunities,** prompting them to seek external career growth
 
-<img width="452" height="197" alt="image" src="https://github.com/user-attachments/assets/2a3b9ee7-305e-451d-b84d-91fd0ed675b1" />
+### Recommendation
+Develop targeted mid-career retention initiatives, including leadership development programs, internal promotion pathways and structured career planning discussions
+
+#### 3.2 Turnover by Position
+
+### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+  
+```sql
+-- Generate a list of years with the start and end date of each year/ Tạo danh sách các năm kèm ngày bắt đầu & kết thúc của từng năm
+WITH year AS (
+SELECT
+  EXTRACT(YEAR FROM y) AS Year,
+  DATE_TRUNC(y, YEAR) AS Year_start,
+  LAST_DAY(y, YEAR) AS Year_end
+FROM UNNEST(
+GENERATE_DATE_ARRAY(DATE '2006-01-01',DATE '2018-12-31',INTERVAL 1 YEAR)) AS y),
+
+-- Combine employee information with their position title/ Kết hợp thông tin nhân viên với tên vị trí công việc
+employee_position AS (
+SELECT
+  hr.EmployeeID,
+  hr.DateofHire,
+  hr.DateofTermination,
+  po.Position
+FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+LEFT JOIN `hr-operations-analysis.hr_raw.Position` AS po
+ON hr.PositionID = po.PositionID),
+
+-- Calculate headcount at the start of each year/ Tính số nhân viên đang làm việc tại đầu năm (active vào ngày 1/1)
+headcount_start AS (
+SELECT
+  y.Year,
+  hr2.Position,
+  COUNT(hr2.EmployeeID) AS headcount_start
+FROM employee_position AS hr2
+JOIN year AS y
+ON hr2.DateofHire < y.Year_start
+AND (hr2.DateofTermination IS NULL OR hr2.DateofTermination >= y.Year_start)
+GROUP BY y.Year, hr2.Position),
+
+-- Calculate headcount at the end of each year/ Tính số nhân viên đang làm việc tại cuối năm (active vào ngày 31/12)
+headcount_end AS (
+SELECT
+  y.Year,
+  hr2.Position,
+  COUNT(hr2.EmployeeID) AS headcount_end
+FROM employee_position AS hr2
+JOIN year AS y
+ON hr2.DateofHire <= y.year_end
+AND (hr2.DateofTermination IS NULL OR hr2.DateofTermination > y.year_end)
+GROUP BY y.Year, hr2.Position),
+
+-- Count how many employees terminated in each year by position/ Đếm số nhân viên nghỉ việc trong từng năm theo từng vị trí
+terminate_count AS (
+SELECT
+  EXTRACT(YEAR FROM DateofTermination) AS Year,
+  Position,
+  COUNT(*) AS total_terminated
+FROM employee_position
+WHERE DateofTermination IS NOT NULL
+GROUP BY Year, Position),
+
+-- Calculate turnover rate using average headcount/ Tính tỷ lệ nghỉ việc dựa trên headcount trung bình của năm
+turnover AS (
+SELECT
+  b.Year,
+  b.Position,
+  ROUND(
+    COALESCE(t.total_terminated,0) /
+    ((COALESCE(s.headcount_start,0) + COALESCE(e.headcount_end,0)) / 2) * 100,2) AS turnover_rate 
+FROM ( -- Create a base table of all Year + Position combinations / Tạo bảng nền gồm tất cả các cặp Year + Position xuất hiện trong các bảng metric
+  SELECT Year, Position FROM headcount_start -- Attach headcount at the start of year/ Ghép thêm headcount đầu năm
+  UNION DISTINCT
+  SELECT Year, Position FROM headcount_end -- Attach headcount at the end of year/ Ghép thêm headcount cuối năm
+  UNION DISTINCT
+  SELECT Year, Position FROM terminate_count -- Attach number of employees who terminated in that year/ Ghép thêm số nhân viên nghỉ việc trong năm đó
+) AS b
+LEFT JOIN headcount_start AS s ON b.Year = s.Year AND b.Position = s.Position
+LEFT JOIN headcount_end AS e ON b.Year = e.Year AND b.Position = e.Position
+LEFT JOIN terminate_count AS t ON b.Year = t.Year AND b.Position = t.Position)
+
+-- Pivot years into columns to create a year-by-year turnover table/ Chuyển các năm thành cột để tạo bảng turnover theo từng năm
+SELECT *
+FROM turnover
+PIVOT(MAX(Turnover_rate)FOR Year IN (2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018))
+ORDER BY Position
+```
+</details>
+
+#### *Turnover rate by all positions*
+
+<img width="1810" height="760" alt="image" src="https://github.com/user-attachments/assets/d01d8f34-8917-4cb7-a7f9-f861a0d0f435" />
+
+<img width="1792" height="487" alt="image" src="https://github.com/user-attachments/assets/1849cac4-4c90-48d0-9632-b2d327863acd" />
+
+#### *Positions with Increasing Turnover Trends*
+
+<img width="664" height="721" alt="image" src="https://github.com/user-attachments/assets/91332a2b-9557-4b2d-a4bd-9ca9d1e44da0" />
 
 
 Full period position analysis shows that attrition is primarily **concentrated in operational roles rather than strategic or executive functions.** Production related positions exhibit the highest cumulative turnover, with **Production Technician II (45.61%), Production Technician I (37.96%)** and **Production Manager II (38.46%)** recording the most significant exits, supported by relatively large headcounts. In contrast, technical and IT roles such as **Software Engineer (33.33%), Data Analyst (25%) and IT Manager (25%)** remain at moderate levels, while leadership roles show minimal or no turnover. Although a few positions display 100% turnover, these are based on very small headcounts and do not represent systemic risk. he pattern suggests that attrition is more operationally driven rather than indicative of a strategic talent retention issue
 
-### 📌 Task 4: Analyze overall turnover rate by tenure
-In addition to position level analysis, turnover was examined by tenure to identify the career stages where attrition is most concentrated. While position analysis highlights “where” employees leave, tenure analysis clarifies “when” they leave. This helps determine whether turnover is linked to onboarding gaps, mid-career stagnation or long-term retention challenges, supporting more stage specific retention strategies
+### Recommendation
+- Improve working conditions and shift flexibility
+- Review compensation competitiveness relative to the market
+- Create skill progression pathways to support career development within operational roles
+#### With positions with increasing turnover trends as Production Technician
+- Conduct targeted exit interviews for operational staff
+- Identify root causes such as workload, management practices or career stagnation
+- Introduce internal mobility or upskilling opportunities
+
+### 📌 Task 4: Voluntary vs Involuntary Turnover
+Examining turnover by Employment Status (Voluntarily Terminated vs. Terminated for Cause) helps clarify the underlying drivers of attrition. While the overall turnover rate shows whether attrition is increasing or decreasing, it does not explain why employees leave. Breaking turnover down by status distinguishes between employee driven exits and company initiated terminations, providing clearer insight into whether attrition reflects retention challenges or internal management decisions
 
 ### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+  
 ```sql
+WITH avg_headcount AS(
+  SELECT
+  b.Year,
+  (b.beginning_headcount + e.end_headcount)/2 AS avg_headcount
+FROM `hr-operations-analysis.hr_raw.beginning_headcount` AS b
+LEFT JOIN `hr-operations-analysis.hr_raw.end_headcount` AS e
+ON b.Year = e.Year),
+
+terminated_by_status AS(
 SELECT
-CASE
-  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) <1 THEN '0-1 year'
-  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) BETWEEN 1 AND 2 THEN '1-2 years'
-  WHEN DATE_DIFF(DateofTermination, DateofHire, YEAR) BETWEEN 3 AND 5 THEN '3-5 years'
-  ELSE '+5 years' END AS Tenure,
-
-COUNT(*) AS terminated_by_tenure,
-
-ROUND(
-  SAFE_DIVIDE(
-    COUNT(*),
-    SUM(COUNT(*)) OVER ()) * 100,2) AS pct_terminated_by_tenure
-
+  EXTRACT (YEAR FROM DateofTermination) AS Year,
+  COUNT(EmployeeID) AS Total_terminated,
+  EmploymentStatus
 FROM `hr-operations-analysis.hr_raw.new_employee_data`
-WHERE Termination = 1
-GROUP BY Tenure;
+WHERE EmploymentStatus IN ('Voluntarily Terminated','Terminated for Cause')
+GROUP BY Year, EmploymentStatus)
+
+SELECT
+  t.Year,
+  t.EmploymentStatus AS Employment_Status,
+  t.Total_terminated,
+  ROUND(SAFE_DIVIDE(t.total_terminated,a.avg_headcount) * 100,2) AS Turnover_by_status
+FROM terminated_by_status AS t
+LEFT JOIN avg_headcount AS a
+ON t.Year = a.Year
+ORDER BY t.Year, Employment_Status;
 ```
+</details>
+
 ### Result
 
-<img width="304" height="89" alt="image" src="https://github.com/user-attachments/assets/868d97bd-24ad-4235-a28d-8e9280451c0d" />
+<img width="853" height="601" alt="image" src="https://github.com/user-attachments/assets/4a34e821-64d4-4bd7-87ee-e61b7656ec91" />
 
 Tenure level analysis shows that **attrition is most concentrated among mid tenure employees.** **The 3–5 years group accounts for 49.04% of total terminations,** representing nearly half of all exits, followed by the 1–2 years group (31.73%). In contrast, early stage employees (0–1 year) contribute only 3.85%, while long-tenured employees (5+ years) represent 15.38% of exits. This pattern suggests that **turnover is not primarily driven by onboarding or early hiring issues** but rather by mid career dynamics. The high proportion of exits within the 3–5 year band may indicate potential career progression bottlenecks, limited advancement opportunities or compensation related factors affecting employees at a critical growth stage
 
-### Task 5: Time series analysis of high turnover positions
-Based on Task 3 findings, three high risk positions — **Production Technician II (45.61%), Production Manager II (38.46%) and Production Technician I (37.96%)** — meeting both scale (headcount ≥10) and turnover threshold (≥20%) criteria were selected for longitudinal analysis
+### Recommendation
+- Strengthen mid career retention programs targeting employees in the 2–5 year tenure range where the majority of exits occur
+- Introduce clearer career progression pathways and promotion criteria to reduce potential advancement bottlenecks for mid tenure employees
+- Expand professional development and upskilling opportunities to support employees at a critical career growth stage
+- Review compensation competitiveness for mid tenure roles, ensuring pay progression aligns with market benchmarks and internal equity
+- Conduct targeted stay interviews with employees in the 2–5 year tenure band to identify early signals of disengagement and address potential retention risks
 
-### Code
+### Task 5: Reasons for Employee Exit
+Analyzing the reasons for employee exit helps provide deeper insight into the underlying drivers of turnover. While previous analyses identify when and where attrition occurs, examining exit reasons reveals why employees leave organization. Understanding these drivers allows business to address root causes more effectively and design targeted retention strategies to reduce future turnover
+
+### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+
 ```sql
-WITH top_positions AS (
-SELECT Position
-FROM `hr-operations-analysis.hr_raw.overall_turnover_position`
-WHERE headcount_per_position >= 10
-AND turnover_rate_by_position >= 20),
-
-yearly_base AS (
+WITH terminated_headcount AS (
 SELECT
-  EXTRACT(YEAR FROM hr.DateofTermination) AS Year,
-  po.Position,
-  COUNT(*) AS total_terminated
-FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-JOIN `hr-operations-analysis.hr_raw.Position` AS po
-ON hr.PositionID = po.PositionID
-WHERE hr.DateofTermination IS NOT NULL
-AND po.Position IN (SELECT Position FROM top_positions)
-GROUP BY Year, po.Position),
+  EXTRACT(YEAR FROM DateofTermination) AS Year,
+  COUNT(DISTINCT EmployeeID) AS Terminated_headcount
+FROM `hr-operations-analysis.hr_raw.new_employee_data`
+WHERE DateofTermination IS NOT NULL
+GROUP BY Year),
 
-position_headcount_year AS (
-  SELECT
-    y.Year,
-    po.Position,
-    COUNT(DISTINCT hr.EmployeeID) AS headcount_year
-  FROM (
-    SELECT DISTINCT EXTRACT(YEAR FROM DateofTermination) AS Year
-    FROM `hr-operations-analysis.hr_raw.new_employee_data`
-    WHERE DateofTermination IS NOT NULL) AS y
-  JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-    ON hr.DateofHire <= DATE(y.Year,12,31)
-   AND (hr.DateofTermination IS NULL 
-        OR hr.DateofTermination >= DATE(y.Year,1,1))
-  JOIN `hr-operations-analysis.hr_raw.Position` AS po
-    ON hr.PositionID = po.PositionID
-  WHERE po.Position IN (SELECT Position FROM top_positions)
-  GROUP BY y.Year, po.Position)
-
+terminated_reason_count AS (
 SELECT
-  t.Position,
-  t.Year,
-  t.total_terminated,
-  h.headcount_year,
-  ROUND(SAFE_DIVIDE(t.total_terminated, h.headcount_year) * 100, 2) AS turnover_rate
-FROM yearly_base t
-LEFT JOIN position_headcount_year h
-ON t.Year = h.Year AND t.Position = h.Position
-ORDER BY t.Position, t.Year;
+  EXTRACT(YEAR FROM DateofTermination) AS Year,
+	COUNT(*) AS Reason_count,
+	CASE
+    WHEN TerminationReason IN ('Another position','career change','more money') THEN 'Career opportunity'
+    WHEN TerminationReason IN ('unhappy','hours') THEN 'Job dissatisfaction'
+    WHEN TerminationReason IN ('attendance','no-call, no-show','gross misconduct','performance') THEN 'Performance / conduct'
+    WHEN TerminationReason IN ('maternity leave - did not return','medical issues','military','return to school','relocation out of area') THEN 'Personal reasons'
+    WHEN TerminationReason = 'retiring' THEN 'Retirement'
+    ELSE 'Other' END AS reason_group
+FROM `hr-operations-analysis.hr_raw.new_employee_data`
+WHERE DateofTermination IS NOT NULL
+GROUP BY Year, reason_group),
+
+reason_distribution AS (
+SELECT
+  t1.Year,
+  t2.reason_group,
+  ROUND((Reason_count/Terminated_headcount) * 100,2) AS Terminate_reason_distribution
+FROM terminated_headcount AS t1
+LEFT JOIN terminated_reason_count AS t2
+ON t1.Year = t2.Year)
+
+SELECT *
+FROM reason_distribution
+PIVOT(
+  MAX(Terminate_reason_distribution)
+  FOR Year IN (2006,2007,2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018))
+ORDER BY reason_group
 ```
+</details>
+
 ### Result
 
-<img width="508" height="357" alt="image" src="https://github.com/user-attachments/assets/fe91cabf-ff64-42a5-83eb-27b373ac9ba6" />
+<img width="1782" height="282" alt="image" src="https://github.com/user-attachments/assets/b683bd8b-022f-459a-a3af-270ba5113170" />
 
-Production Technician I shows a structural upward trend, **rising from 2.63% (2012) to 13.04% (2016)**. In contrast, Production Technician II experienced a **one-time spike at 24.24% (2013)** before stabilizing, while Production Manager II **peaked at 25% (2012) but remained around ~11% afterward**. The findings indicate sustained attrition pressure primarily in Production Technician I.
+**Career opportunity** consistently represents the largest share of exits, **accounting for 66.67% in 2011,** then gradually declining but still remaining high at **38.46% in 2018.** Meanwhile, **job dissatisfaction peaked at 46.15% in 2013 before steadily decreasing to 7.69% by 2018,** suggesting some improvement in employee experience over time. In contrast, **performance or conduct related** exits show a gradual increase in later years, **rising from 7.69% in 2013 to around 23–25% between 2016 and 2018.** Overall, these patterns indicate that turnover is primarily driven by career advancement opportunities and job satisfaction factors rather than personal circumstances
 
-## 🔎 Final Conclusion & Recommendations  
+### Recommendation
+- Strengthen internal career mobility by providing clearer promotion pathways and internal job opportunities
+- Expand professional development programs to support employee growth and reduce the need to seek opportunities outside the organization
+- Improve employee engagement and job satisfaction through regular feedback, engagement surveys  and manager training
+- Review compensation competitiveness, particularly for roles where career opportunity appears to drive turnover
 
-Based on the insights above, the following strategic actions are recommended for HR Team:  
+## 🔎 Final Conclusion and Recommendation
 
-### 1️⃣ Growth Driven Attrition, Not Structural Instability
-Turnover peaked in 2015 (10.34%) during rapid workforce expansion, then stabilized as growth slowed. This suggests attrition was largely associated with scaling pressure rather than systemic retention failure.
+The turnover analysis reveals that employee attrition is influenced by several structural patterns within the organization. Overall turnover increased during periods of workforce expansion, suggesting that rapid organizational growth may create retention challenges. Seasonality analysis indicates that turnover tends to rise during certain months of the year, implying potential external labor market effects
 
-### Key Actions
-- Implement structured workforce planning before large scale hiring phases
-- Forecast expected attrition buffers in expansion models
-- Strengthen onboarding capacity during rapid growth periods
+**Employee segmentation** further shows that attrition is highly concentrated among mid tenure employees, particularly those **with 3–5 years of tenure** who account for nearly half of all exits. In addition, turnover is primarily observed in **operational roles, especially production related positions.** Finally, exit reason analysis indicates that **career opportunities and job dissatisfaction are the main drivers of turnover,** while performance-related terminations represent a smaller share. Together, these findings suggest that most turnover is **voluntary and opportunity driven** rather than caused by onboarding issues or unavoidable personal factors
 
-### 2️⃣ Attrition is Primarily Voluntary
-Most separations were employee driven rather than company initiated, indicating retention risk rather than performance cleansing
-
-### Key Actions
-- Standardize exit reason categorization for voluntary exits
-Conduct proactive stay interviews for mid-tenure employees
-- Introduce early retention risk flags based on tenure and role
-
-### 3️⃣ Operational Roles Drive Attrition Risk
-Turnover is concentrated in production related roles (Technician I, Technician II, Manager II), while leadership and strategic roles remain stable. This signals operational continuity risk rather than strategic talent loss
-
-### Key Actions
-- Redesign career progression pathways for production roles
-- Establish structured skill ladders with defined promotion timelines
-- Build operational staffing buffers during peak production periods
-
-### 4️⃣ Mid Tenure Employees (3–5 Years) Represent the Highest Risk Segment
-Nearly half of all terminations occur within the 3–5 year tenure band, indicating potential stagnation, compensation gaps or limited advancement opportunities at a critical career stage
-
-### Key Actions
-- Launch mid-career progression programs (3–5 year focus)
-- Conduct targeted compensation benchmarking for this segment
-- Offer internal mobility opportunities before the 4-year mark
-
-### 5️⃣ Structural Risk in Production Technician I
-Production Technician I shows a sustained upward turnover trend, indicating a structural pressure point rather than a one-time spike.
-
-### Key Actions
-- Implement milestone-based pay and title progression within the first 24 months
-- Strengthen frontline manager training and engagement capability
-- Introduce retention check-ins at 18–24 months for entry-level production staff
+To address the primary drivers of turnover, the organization should focus on strengthening employee retention strategies, particularly for mid-tenure employees and operational roles:
+- Prioritize retention initiatives for employees with 2–5 years of tenure, where attrition risk is highest. Clear promotion pathways, internal mobility programs, and leadership development opportunities can help retain employees during this critical career stage.
+- Improve career growth visibility within the organization by providing structured career progression frameworks and skill development opportunities that allow employees to advance without leaving the company
+- Enhance engagement and job satisfaction, particularly in operational roles through regular employee feedback, improved job design and stronger managerial support
+- Monitor turnover seasonality and workforce expansion periods to proactively implement retention actions before high risk periods
