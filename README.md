@@ -1,6 +1,6 @@
 <img width="1440" height="817" alt="image" src="https://github.com/user-attachments/assets/de9e242a-b212-4a2d-a837-68b2930ba846" />
 
-# 📊 Turnover Rate Across Periods Analysis - mid sized technology enabled organization | SQL
+## 📊 Turnover Rate Across Periods Analysis - mid sized technology enabled organization | SQL
   
 ### Author: Vo Tran Mai Khanh
 ### Date: 02/2026
@@ -54,7 +54,6 @@
 ### 📌 Task 1: Analyze turnover rate by year to identify trends over time
 Annual turnover analysis is essential to detect long term workforce trends, identify potential retention risks and assess whether turnover changes are structural or event driven. This metric provides an early signal of workforce instability and supports strategic workforce planning
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
   
@@ -134,7 +133,6 @@ This pattern suggests that **organizational growth and workforce expansion are c
 ### 📌 Task 2: Analyze turnover rate contribution by Employment Status - Voluntarily Terminated & Terminate by Cause
 While yearly turnover trend highlights long-term changes in employee attrition, analyzing monthly turnover patterns helps identify potential seasonal fluctuations within each year. This allows organization to detect recurring periods of higher turnover risk and implement targeted retention strategies in advance
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
   
@@ -180,7 +178,6 @@ FOR YEAR IN (2006,2007,2008,2009,2010,2011,
 ```
 </details>
 
-
 ### Result
 
 <img width="1885" height="520" alt="image" src="https://github.com/user-attachments/assets/003ea132-b555-4cf6-91b2-7e4f158e1278" />
@@ -197,7 +194,6 @@ Analyzing turnover concentration by employee segments helps identify which group
 
 #### 3.1 Tenure Trend Over Time
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
   
@@ -269,7 +265,6 @@ Develop targeted mid-career retention initiatives, including leadership developm
 
 #### 3.2 Turnover by Position
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
   
@@ -380,7 +375,6 @@ Full period position analysis shows that attrition is primarily **concentrated i
 ### 📌 Task 4: Voluntary vs Involuntary Turnover
 Examining turnover by Employment Status (Voluntarily Terminated vs. Terminated for Cause) helps clarify the underlying drivers of attrition. While the overall turnover rate shows whether attrition is increasing or decreasing, it does not explain why employees leave. Breaking turnover down by status distinguishes between employee driven exits and company initiated terminations, providing clearer insight into whether attrition reflects retention challenges or internal management decisions
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
   
@@ -430,7 +424,6 @@ Tenure level analysis shows that **attrition is most concentrated among mid tenu
 ### Task 5: Reasons for Employee Exit
 Analyzing the reasons for employee exit helps provide deeper insight into the underlying drivers of turnover. While previous analyses identify when and where attrition occurs, examining exit reasons reveals why employees leave organization. Understanding these drivers allows business to address root causes more effectively and design targeted retention strategies to reduce future turnover
 
-### Code:
 <details>
 <summary><b>View SQL Code</b></summary>
 
