@@ -16,7 +16,7 @@
 
 ### 👤 Who is this project for?  
 - HR Leadership & People Analytics Team – to monitor turnover trends and design targeted retention strategies
-- Department Managers – to identify high risk teams and address engagement or performance gaps
+- Department Managers – to identify high risk teams
 - Executive Leadership – to understand workforce stability and its impact on operational continuity
 - Talent Acquisition Team – to adjust hiring strategy based on turnover patterns and tenure risks
 - Workforce Planning / Operations Team – to support succession planning and capacity forecasting 
@@ -55,31 +55,44 @@
 Annual turnover analysis is essential to detect long term workforce trends, identify potential retention risks and assess whether turnover changes are structural or event driven. This metric provides an early signal of workforce instability and supports strategic workforce planning
 
 ### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+  
 ```sql
- WITH years AS(
-  SELECT DISTINCT EXTRACT (YEAR FROM DateofHire) AS Year
-FROM `hr-operations-analysis.hr_raw.new_employee_data`),
+ -- Get the list of years appearing in hire or termination dates/ Lấy danh sách các năm xuất hiện trong ngày vào làm & nghỉ việc
+WITH year AS (
+SELECT DISTINCT Year
+FROM (
+  SELECT EXTRACT(YEAR FROM DateofHire) AS Year
+  FROM `hr-operations-analysis.hr_raw.new_employee_data`
+  UNION ALL
+  SELECT EXTRACT(YEAR FROM DateofTermination) AS Year
+  FROM `hr-operations-analysis.hr_raw.new_employee_data`
+  WHERE DateofTermination IS NOT NULL)),
 
+-- Calculate headcount at the beginning of each year/ Tính số nhân viên đang làm việc tại thời điểm đầu năm
 beginning_headcount AS(
   SELECT 
   y.Year,
-  COUNT(EmployeeID) AS beginning_headcount
-FROM years AS y
+  COUNT(EmployeeID) AS Beginning_headcount
+FROM year AS y
   LEFT JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-  ON hr.DateofHire <= DATE(CONCAT(y.Year,'-01-01'))
-  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= DATE(CONCAT(y.Year,'-01-01'))))
+  ON hr.DateofHire <= DATE(y.Year,1,1)
+  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= DATE(y.Year,1,1)))
 GROUP BY y.Year),
 
+-- Calculate headcount at the end of each year/ Tính số nhân viên đang làm việc tại thời điểm cuối năm
 end_headcount AS(
 SELECT 
   y.Year,
-  COUNT(EmployeeID) AS end_headcount
-FROM years AS y
+  COUNT(EmployeeID) AS End_headcount
+FROM year AS y
   LEFT JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
-  ON hr.DateofHire <= DATE(CONCAT(y.Year,'-12-31'))
-  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= DATE(CONCAT(y.Year,'-12-31'))))
+  ON hr.DateofHire <= DATE(y.Year,12,31)
+  AND (hr.DateofTermination IS NULL OR (hr.DateofTermination > DATE(y.Year,12,31)))
 GROUP BY y.Year),
 
+-- Count total employee exits in each year/ Đếm số nhân viên nghỉ việc trong từng năm
 termination_by_year AS(
 SELECT
   EXTRACT (YEAR FROM DateofTermination) AS Year,
@@ -88,6 +101,7 @@ FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr
 WHERE DateofTermination IS NOT NULL
 GROUP BY Year)
 
+-- Calculate annual turnover rate/ Tính tỷ lệ nghỉ việc
 SELECT
   y.Year,
   IFNULL(b.beginning_headcount,0) AS Beginning_headcount,
@@ -95,61 +109,88 @@ SELECT
   IFNULL(t.total_terminated,0) AS Total_terminated,
   IFNULL(
     ROUND(
-    t.total_terminated / ((b.beginning_headcount + e.end_headcount) / 2) * 100,2),0) AS Turnover_rate_by_year
-FROM years AS y
+    t.total_terminated / ((b.beginning_headcount + e.end_headcount) / 2) * 100,2),0) AS Turnover_rate_by_year -- số người nghỉ / headcount trung bình trong năm
+FROM year AS y
   LEFT JOIN beginning_headcount AS b ON y.Year = b.Year
   LEFT JOIN end_headcount AS e ON y.Year = e.Year
   LEFT JOIN termination_by_year AS t ON y.Year = t.Year
 ORDER BY y.Year
 ```
+</details>
+
 ### Result
 
 <img width="449" height="253" alt="image" src="https://github.com/user-attachments/assets/b31519d5-f0a0-4682-b048-546a1da32805" />
 
-Overall, turnover ranged from 3.6% to 10.3% between 2006 and 2018, **peaking in 2015 (10.34%)** during the company’s rapid expansion phase, when headcount grew significantly from 13 to 229 employees. Turnover **gradually increased** alongside workforce growth from **2010 to 2015,** suggesting that attrition was linked to scaling pressure rather than structural retention issues. Following 2016, turnover **declined notably to 3.64% in 2017,** indicating improved stability as organizational growth slowed. **No abnormal spikes or retention crisis were observed** and hiring consistently offset attrition during peak years
+Employee turnover remained negligible before 2010 due to the small workforce size. As the organization expanded rapidly, turnover gradually increased and peaked at **10.34% in 2015**. After a temporary decline in 2016–2017, the rate **increased again in 2018 (~6.1%)**
+
+This pattern suggests that **organizational growth and workforce expansion are closely associated with higher attrition risk**, likely due to onboarding challenges, role adjustments and cultural adaptation during scaling phases
+
+### Recommendation
+- Monitor turnover closely during periods of rapid workforce growth
+- Strengthen onboarding and early engagement programs to support new employees
+- Implement early retention monitoring for employees within their **first 12–24 months**
 
 ### 📌 Task 2: Analyze turnover rate contribution by Employment Status - Voluntarily Terminated & Terminate by Cause
-Following the annual turnover trend analysis, examining turnover by Employment Status (Voluntarily Terminated vs. Terminated for Cause) helps clarify the underlying drivers of attrition. While the overall rate shows whether turnover is rising or falling, it does not explain why employees leave. Breaking it down by status distinguishes between employee driven exits and company initiated terminations, providing clearer insight into whether turnover reflects retention challenges or internal management decisions
+While yearly turnover trend highlights long-term changes in employee attrition, analyzing monthly turnover patterns helps identify potential seasonal fluctuations within each year. This allows organization to detect recurring periods of higher turnover risk and implement targeted retention strategies in advance
 
 ### Code:
+<details>
+<summary><b>View SQL Code</b></summary>
+  
 ```sql
-WITH years AS(
-  SELECT DISTINCT EXTRACT (YEAR FROM hr.DateofTermination)
-FROM `hr-operations-analysis.hr_raw.new_employee_data` AS hr),
-
-avg_headcount AS(
+-- Create a calendar table with month start and month end for the analysis period/ Tạo bảng calendar gồm ngày đầu & cuối tháng cho toàn bộ giai đoạn phân tích/ 
+WITH calendar AS(
 SELECT
-  b.Year,
-  (b.beginning_headcount + e.end_headcount)/2 AS avg_headcount
-FROM `hr-operations-analysis.hr_raw.beginning_headcount` AS b
-LEFT JOIN `hr-operations-analysis.hr_raw.end_headcount` AS e
-ON b.Year = e.Year),
+  month AS month_start,
+  LAST_DAY(month) AS month_end
+FROM UNNEST(
+GENERATE_DATE_ARRAY(DATE '2006-01-01',DATE'2018-12-31',INTERVAL 1 MONTH)) AS month),
 
-terminated_by_status AS(
+-- Tính các chỉ số workforce theo từng tháng/ Calculate monthly workforce metrics
+monthly_metric AS(
 SELECT
-  EXTRACT (YEAR FROM DateofTermination) AS Year,
-  COUNT(EmployeeID) AS total_terminated,
-  EmploymentStatus
-FROM `hr-operations-analysis.hr_raw.new_employee_data`
-WHERE EmploymentStatus IN ('Voluntarily Terminated','Terminated for Cause')
-GROUP BY Year, EmploymentStatus)
+  c.month_start,
+  COUNTIF(hr.DateofHire >= c.month_start
+    AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= c.month_start))) AS Beginning_headcount, -- Headcount tại đầu tháng
+  COUNTIF(hr.DateofHire <= c.month_end
+    AND (hr.DateofTermination IS NULL OR (hr.DateofTermination >= c.month_end))) AS End_headcount, -- Headcount tại cuối tháng
+  COUNTIF(DATE_TRUNC(hr.DateofTermination,MONTH) = c.month_start) AS Terminated_count -- Số nhân viên nghỉ việc trong tháng
 
+-- Join HR data with each month to evaluate employment status/ Join dữ liệu nhân sự với từng tháng để kiểm tra trạng thái làm việc
+FROM calendar AS c
+LEFT JOIN `hr-operations-analysis.hr_raw.new_employee_data` AS hr
+ON TRUE
+GROUP BY c.month_start, c.month_end),
+
+-- Calculate monthly turnover rate/ Tính turnover rate theo từng tháng
+turnover AS(
 SELECT
-  t.Year,
-  t.EmploymentStatus,
-  t.total_terminated,
-  ROUND(SAFE_DIVIDE(t.total_terminated,a.avg_headcount) * 100,2) AS turnover_by_status
-FROM terminated_by_status AS t
-LEFT JOIN avg_headcount AS a
-ON t.Year = a.Year
-ORDER BY t.Year, t.EmploymentStatus;
+  EXTRACT(YEAR FROM month_start) AS Year,
+  EXTRACT(MONTH FROM month_start) AS Month,
+  ROUND((Terminated_count/((Beginning_headcount + End_headcount)/2)) * 100,2) AS Turnover_rate -- Số nhân viên nghỉ việc / Headcount trung bình
+FROM monthly_metric)
+
+-- Pivot the table so each year becomes a column/ Chuyển bảng thành dạng pivot với mỗi năm là một cột
+SELECT*
+FROM turnover
+PIVOT(MAX(Turnover_rate)
+FOR YEAR IN (2006,2007,2008,2009,2010,2011,
+2012,2013,2014,2015,2016,2017,2018))
 ```
+</details>
+
 
 ### Result
 
-<img width="418" height="272" alt="image" src="https://github.com/user-attachments/assets/d8906e85-6d5f-4359-a099-8969442109aa" />
+<img width="1885" height="520" alt="image" src="https://github.com/user-attachments/assets/003ea132-b555-4cf6-91b2-7e4f158e1278" />
 
-The breakdown of turnover by Employment Status shows that **voluntary resignations consistently account** for the majority of annual turnover. From 2010 to 2018, **voluntary turnover** remains significantly higher than terminations for cause, **peaking in 2015–2016**, while **involuntary** turnover stays low and stable, **generally below 2.5%**. This indicates that fluctuations in overall turnover are **primarily driven by employee initiated exits** rather than company decisions. The spike in 2015–2016 suggests a retention challenge during that period, whereas the decline in 2017 reflects improved stability. Overall, attrition appears more related to engagement, career progression, or external opportunities, implying that retention strategies rather than stricter performance management should be the primary focus
+
+Turnover shows noticeable seasonal patterns with increases occurring primarily around **April – May and August – September.** These periods often align with common labor market cycles such as post bonus transitions, fiscal year planning or peak recruitment seasons when external job opportunities increase
+
+### Recommendation
+- Conduct retention reviews before high risk periods, particularly during Q2 and Q3
+- Implement proactive measures such as: compensation reviews, career discussions and internal mobility opportunities. These actions can reduce the likelihood of employees leaving during peak turnover periods
 
 ### 📌 Task 3: Analyze overall turnover rate by position
 Building on the turnover analysis by status and year, turnover was further examined by position to identify roles contributing most to employee exits. While the time based analysis reveals how turnover evolves across years, position level analysis highlights where turnover is concentrated within the organization. This provides clearer insight into functional areas that may require deeper investigation or targeted retention strategies
