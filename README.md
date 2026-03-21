@@ -1,6 +1,6 @@
 <img width="1440" height="817" alt="image" src="https://github.com/user-attachments/assets/de9e242a-b212-4a2d-a837-68b2930ba846" />
 
-## 📊 Turnover Rate Across Periods Analysis - mid sized technology enabled organization | SQL
+## 📊 Turnover Rate Across Periods Analysis - Mid sized technology enabled organization | SQL
   
 ### Author: Vo Tran Mai Khanh
 ### Date: 02/2026
